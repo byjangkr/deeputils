@@ -1,0 +1,14 @@
+## MD project ignore file ##
+# : comments
+
+# temp.py~ files
+*~
+
+# experiment directory
+exp/
+
+# temporal data directory
+data/
+
+# temporal python files
+*.pyc
