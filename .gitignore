@@ -12,3 +12,5 @@ data/
 
 # temporal python files
 *.pyc
+
+.idea/
