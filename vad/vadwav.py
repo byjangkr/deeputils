@@ -47,7 +47,6 @@ def reverse_min_sil_index(vad_frame_index_, min_sil_frames):
         elif (vadinx[i-1] == 0) & (vadinx[i] == 0):
             bufinx.append(i)
         elif (vadinx[i-1] == 0) & (vadinx[i] == 1):
-            print len(bufinx)
             if(len(bufinx) > mval):
                 _vad_frame_index[bufinx] = 0
             bufinx = []
@@ -97,9 +96,6 @@ def decision_vad_index(wav_path,vad_aggressive,vad_frame_size,min_sil_frames,log
         plt.plot(fr,vad_frame_index_rev[0:endi])
         plt.axis([fr[0],fr[-1],-0.5,1.5])
         plt.title('After median filtering')
-
-
-
 
     if log_level > 0:
         print 'LOG: extend of vad result from frame unit to sample unit'
