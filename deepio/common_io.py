@@ -94,7 +94,7 @@ def dense_to_one_hot_from_range(labels_dense, class_range):
   """Convert class labels from scalars to one-hot vectors."""
   min_val = numpy.ndarray.min(class_range)
   # max_val = numpy.ndarray.max(class_range)
-  num_classes = len(class_range)
+  num_classes = class_range.shape[0]
 
   num_labels = labels_dense.shape[0]
   index_offset = numpy.arange(num_labels) * num_classes
