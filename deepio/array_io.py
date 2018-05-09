@@ -15,6 +15,18 @@ def load_array_from_pos(filename, pos_):
 
     return _data, _pos
 
+def read_pos_lab_file(filename):
+    pos_lab_list = []
+    with open(filename,'r') as f:
+        while True:
+            line = f.readline()
+            if not line: break
+            ipos = long(line.split(' ')[0])
+            ilab = line.split(' ')[1].strip()
+            pos_lab_list.append([ipos,ilab])
+
+    return pos_lab_list
+
 def fast_load_array_from_poslist(filename, poslist_, array_shape_=0):
     with open(filename,'rb') as f:
         datalen = np.array(len(poslist_))
@@ -26,19 +38,48 @@ def fast_load_array_from_poslist(filename, poslist_, array_shape_=0):
             shape_ = np.append(datalen, array_shape_[:])
 
         _data_ary = np.zeros(shape_)
-        poslist = poslist_[:]
+        poslist = np.array(poslist_[:],dtype=long)
         poslist.sort()
 
         i = 0
-        pre_pos = 0
+        pre_pos = f.tell()
         for pos_ in poslist:
             mv_pos = pos_ - pre_pos
-            f.seek(mv_pos)
+            f.seek(mv_pos,1)
             _data_ary[i] = np.load(f)
-            pre_pos = pos_
+            pre_pos = f.tell()
             i += 1
 
     return _data_ary
+
+def fast_load_array_from_pos_lab_list(filename, pos_lab_list_, array_shape_=0):
+    # pos_lab_list : [ number_of_pos(string) label(string), ... ]
+    with open(filename,'rb') as f:
+        datalen = np.array(len(pos_lab_list_))
+
+        if array_shape_ == 0:
+            tmp_ary = np.load(f)
+            shape_ = np.append(datalen, tmp_ary.shape[:])
+        else:
+            shape_ = np.append(datalen, array_shape_[:])
+
+        _data_ary = np.zeros(shape_)
+        _lab_list = ['None' for i in xrange(int(datalen))]
+        pos_lab_list = pos_lab_list_[:]
+        pos_lab_list.sort()
+
+        i = 0
+        pre_pos = f.tell()
+        for pos_, lab_ in pos_lab_list:
+            mv_pos = pos_ - pre_pos
+            f.seek(mv_pos,1)
+
+            _data_ary[i] = np.load(f)
+            _lab_list[i] = lab_
+            pre_pos = f.tell()
+            i += 1
+
+    return _data_ary, _lab_list
 
 
 def main():
@@ -56,7 +97,7 @@ def main():
 
     poslist = [pos_a,pos_b]
     data_ary = fast_load_array_from_poslist(aryfile,poslist)
-    print data_ary
+    # print data_ary
 
 
 
