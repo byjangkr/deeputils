@@ -121,6 +121,8 @@ def mfcc_tensorflow(wavfile, _sr, frame_size, frame_shift, order=13):
 # compute log-spectrogram using 'scipy' : 'scispec'
 def log_spec_scipy(wavfile, _sr, frame_size, frame_shift, fft_size):
     sample_rate, data = scipy.io.wavfile.read(wavfile)
+    if len(data.shape) > 1:
+        data = (data[:,0] + data[:,1])/2
     check_sample_rate(wavfile,_sr,sample_rate)
     # if nfft is 'None', fft size is 'nperseg'
     sample_freq, segment_time, spec_data = scipy.signal.spectrogram(data, fs=sample_rate,
