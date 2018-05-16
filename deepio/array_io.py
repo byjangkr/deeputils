@@ -81,6 +81,37 @@ def fast_load_array_from_pos_lab_list(filename, pos_lab_list_, array_shape_=0):
 
     return _data_ary, _lab_list
 
+def fast_load_array_from_pos_lab_vad_list(filename, pos_lab_list_, array_shape_=0):
+    # pos_lab_list : [ number_of_pos(string) label(string), ... ]
+    with open(filename,'rb') as f:
+        datalen = np.array(len(pos_lab_list_))
+
+        if array_shape_ == 0:
+            tmp_ary = np.load(f)
+            shape_ = np.append(datalen, tmp_ary.shape[:])
+        else:
+            shape_ = np.append(datalen, array_shape_[:])
+
+        _data_ary = np.zeros(shape_)
+        _lab_list = ['None' for i in xrange(int(datalen))]
+        _vad_list = np.ones(datalen,dtype=int) * (-1)
+        pos_lab_list = pos_lab_list_[:]
+        pos_lab_list.sort()
+
+        i = 0
+        pre_pos = f.tell()
+        for pos_, lab_, vad_ in pos_lab_list:
+            mv_pos = pos_ - pre_pos
+            f.seek(mv_pos,1)
+
+            _data_ary[i] = np.load(f)
+            _lab_list[i] = lab_
+            _vad_list[i] = int(vad_)
+            pre_pos = f.tell()
+            i += 1
+
+    return _data_ary, _lab_list, _vad_list
+
 
 def main():
     print 'Example code...'
