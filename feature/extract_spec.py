@@ -203,6 +203,28 @@ def mfcc_librosa(wavfile, _sr, frame_size, frame_shift, fft_size, n_mels_=64, fm
 
     return segment_time, mfcc
 
+# compute mfcc using 'librosa' : 'rosamfccdel'
+def mfccdel_librosa(wavfile, _sr, frame_size, frame_shift, fft_size, n_mels_=64, fmin_=0.0, fmax_=7600, n_mfcc_=13):
+    data, fs = librosa.load(wavfile,sr=None)
+    check_sample_rate(wavfile,_sr,fs)
+    spec_data = librosa.core.stft(data,n_fft=fft_size,hop_length=frame_shift,win_length=frame_size,
+                                  window='hann',center=False)
+    S = librosa.feature.melspectrogram(sr=fs,S=(np.abs(spec_data)**2),
+                                       n_mels=n_mels_,fmin=fmin_,fmax=fmax_) # parameter for mel-filter
+    mfcc = librosa.feature.mfcc(S=librosa.power_to_db(S),n_mfcc=n_mfcc_, dct_type=2)
+    mfcc_del1 = librosa.feature.delta(mfcc)
+    mfcc_del2 = librosa.feature.delta(mfcc,order=2)
+
+    mfccdel = np.zeros((mfcc.shape[0]*3,mfcc.shape[1]),dtype=mfcc.dtype)
+    mfccdel[0:n_mfcc_,:] = mfcc[:]
+    mfccdel[n_mfcc_*1:n_mfcc_*2,:] = mfcc_del1[:]
+    mfccdel[n_mfcc_*2:n_mfcc_*3,:] = mfcc_del2[:]
+
+    segtime = segment_time_librosa(len(data),fs,frame_size,frame_shift)
+    segment_time = segtime[0:int(mfcc.shape[1])]
+
+    return segment_time, mfcc
+
 # compute chroma spectrogram using 'librosa' : 'rosachroma'
 def chroma_spec_librosa(wavfile, _sr, frame_size, frame_shift, fft_size):
     data, fs = librosa.load(wavfile, sr=None)
@@ -261,10 +283,10 @@ def ex_run(wavfile_,spec_type_='scispec',sample_rate_=16000,frame_size_=25,frame
     frame_shift_ = np.int(frame_shift_ * sr_ * 0.001)
     fft_size = fft_size_
 
-    _, segment_time, spec_data = log_spec_scipy(wav_path, sr_, frame_size_, frame_shift_, fft_size)
-    segment_time2, spec_data2 = mfcc_librosa(wav_path, sr_, frame_size_, frame_shift_, fft_size)
-    print spec_data.shape, spec_data2.shape
-    print segment_time.shape, segment_time2.shape
+    # _, segment_time, spec_data = log_spec_scipy(wav_path, sr_, frame_size_, frame_shift_, fft_size)
+    segment_time2, spec_data2 = mfccdel_librosa(wav_path, sr_, frame_size_, frame_shift_, fft_size)
+    # print spec_data.shape, spec_data2.shape
+    # print segment_time.shape, segment_time2.shape
 
     print "End of ex_run..."
 
