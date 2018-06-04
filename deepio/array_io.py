@@ -27,6 +27,19 @@ def read_pos_lab_file(filename):
 
     return pos_lab_list
 
+def read_pos_lab_vad_file(filename):
+    pos_lab_list = []
+    with open(filename,'r') as f:
+        while True:
+            line = f.readline()
+            if not line: break
+            ipos = long(line.split(' ')[0])
+            ilab = line.split(' ')[1].strip()
+            ivad = int(line.split(' ')[2])
+            pos_lab_list.append([ipos,ilab,ivad])
+
+    return pos_lab_list
+
 def fast_load_array_from_poslist(filename, poslist_, array_shape_=0):
     with open(filename,'rb') as f:
         datalen = np.array(len(poslist_))
