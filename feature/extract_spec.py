@@ -59,6 +59,41 @@ from tensorflow.python.ops import io_ops
 log_offset = 1e-6
 
 ### end of hyper parameter ###
+def freq_to_mel(freq_):
+    return 2595.0*np.log10(1.0 + freq_/700.0)
+
+def mel_to_freq(mel_):
+    return (10**(mel_/2595.0) - 1.0)*700.0
+
+def mel_scale_range(fft_size_,sr_,n_mel_=64):
+    minfreq = 0
+    maxfreq = sr_ / 2.0
+
+    fft_size = fft_size_
+    fftstep = (sr_ / 2.0) / fft_size
+    fft2freq = np.arange(minfreq,maxfreq,fftstep)
+
+    melstep = (freq_to_mel(maxfreq) - freq_to_mel(minfreq)) / n_mel_
+    mel_range = np.arange(freq_to_mel(minfreq),freq_to_mel(maxfreq),melstep)
+    melfreq_range = mel_to_freq(mel_range)
+
+    melscale_inx = np.zeros((n_mel_,fft_size),dtype=bool)
+    melscale_dim = np.zeros(n_mel_,dtype=int)
+    fftrange = np.arange(fft_size)
+
+    for i in xrange(n_mel_):
+        if i == (n_mel_-1): # last bin
+            inx = (melfreq_range[i] <= fft2freq)
+        else:
+            inx = ((melfreq_range[i] <= fft2freq) & (melfreq_range[i+1] > fft2freq))
+
+        melscale_inx[i] = inx
+        if not fftrange[inx].any():
+            assert('ERROR(mel_scale_range): %d mel-bin is empty, reduce number of mel' %(i))
+
+        melscale_dim[i] = int(fftrange[inx].shape[0])
+    return melscale_inx, melscale_dim
+
 def spec_zm(spec_data):
     ntime = spec_data.shape[1]
     mean_data = np.matlib.repmat(np.mean(spec_data,axis=1),ntime,1)
@@ -175,7 +210,7 @@ def log_spec_librosa(wavfile, _sr, frame_size, frame_shift, fft_size):
 
 
 # compute mel-scale spectrogram using 'librosa' : 'rosamelspec'
-def mel_spec_librosa(wavfile, _sr, frame_size, frame_shift, fft_size, n_mels_=64, fmin_=0.0, fmax_=7600):
+def mel_spec_librosa(wavfile, _sr, frame_size, frame_shift, fft_size, n_mels_=64, fmin_=0.0, fmax_=8000):
     data, fs = librosa.load(wavfile,sr=None)
     check_sample_rate(wavfile,_sr,fs)
     spec_data = librosa.core.stft(data,n_fft=fft_size,hop_length=frame_shift,win_length=frame_size,
@@ -190,7 +225,7 @@ def mel_spec_librosa(wavfile, _sr, frame_size, frame_shift, fft_size, n_mels_=64
     return segment_time, log_S
 
 # compute mfcc using 'librosa' : 'rosamfcc'
-def mfcc_librosa(wavfile, _sr, frame_size, frame_shift, fft_size, n_mels_=64, fmin_=0.0, fmax_=7600, n_mfcc_=13):
+def mfcc_librosa(wavfile, _sr, frame_size, frame_shift, fft_size, n_mels_=64, fmin_=0.0, fmax_=8000, n_mfcc_=13):
     data, fs = librosa.load(wavfile,sr=None)
     check_sample_rate(wavfile,_sr,fs)
     spec_data = librosa.core.stft(data,n_fft=fft_size,hop_length=frame_shift,win_length=frame_size,
@@ -204,7 +239,7 @@ def mfcc_librosa(wavfile, _sr, frame_size, frame_shift, fft_size, n_mels_=64, fm
     return segment_time, mfcc
 
 # compute mfcc using 'librosa' : 'rosamfccdel'
-def mfccdel_librosa(wavfile, _sr, frame_size, frame_shift, fft_size, n_mels_=64, fmin_=0.0, fmax_=7600, n_mfcc_=13):
+def mfccdel_librosa(wavfile, _sr, frame_size, frame_shift, fft_size, n_mels_=64, fmin_=0.0, fmax_=8000, n_mfcc_=13):
     data, fs = librosa.load(wavfile,sr=None)
     check_sample_rate(wavfile,_sr,fs)
     spec_data = librosa.core.stft(data,n_fft=fft_size,hop_length=frame_shift,win_length=frame_size,
@@ -223,7 +258,7 @@ def mfccdel_librosa(wavfile, _sr, frame_size, frame_shift, fft_size, n_mels_=64,
     segtime = segment_time_librosa(len(data),fs,frame_size,frame_shift)
     segment_time = segtime[0:int(mfcc.shape[1])]
 
-    return segment_time, mfcc
+    return segment_time, mfccdel
 
 # compute chroma spectrogram using 'librosa' : 'rosachroma'
 def chroma_spec_librosa(wavfile, _sr, frame_size, frame_shift, fft_size):
@@ -237,6 +272,19 @@ def chroma_spec_librosa(wavfile, _sr, frame_size, frame_shift, fft_size):
     segment_time = segtime[0:int(chroma_data.shape[1])]
 
     return segment_time, chroma_data
+
+# compute chroma spectrogram using 'librosa' : 'rosatempo'
+def tempogram_librosa(wavfile, _sr, frame_size, frame_shift, fft_size):
+    data, fs = librosa.load(wavfile, sr=None)
+    check_sample_rate(wavfile,_sr,fs)
+    tempo_data = librosa.feature.tempogram(data,sr=fs, hop_length=frame_shift, win_length=frame_size,
+                                  window='hann', center=False)
+
+    segtime = segment_time_librosa(len(data),fs,frame_size,frame_shift)
+    segment_time = segtime[0:int(tempo_data.shape[1])]
+    print tempo_data.shape, segtime.shape
+
+    return segment_time, tempo_data
 
 def plot_spec(spec_data):
     plt.figure()
@@ -283,8 +331,11 @@ def ex_run(wavfile_,spec_type_='scispec',sample_rate_=16000,frame_size_=25,frame
     frame_shift_ = np.int(frame_shift_ * sr_ * 0.001)
     fft_size = fft_size_
 
-    # _, segment_time, spec_data = log_spec_scipy(wav_path, sr_, frame_size_, frame_shift_, fft_size)
-    segment_time2, spec_data2 = mfccdel_librosa(wav_path, sr_, frame_size_, frame_shift_, fft_size)
+    _, segment_time, spec_data = log_spec_scipy(wav_path, sr_, frame_size_, frame_shift_, fft_size)
+    # segment_time2, spec_data2 = tempogram_librosa(wav_path, sr_, frame_size_, frame_shift_, fft_size)
+    mel_scale_range(spec_data,sr_=16000,n_mel_=64)
+
+
     # print spec_data.shape, spec_data2.shape
     # print segment_time.shape, segment_time2.shape
 
@@ -351,5 +402,5 @@ def main():
     #output_data(out_file,spec_data)
 
 if __name__=="__main__":
-    main()
-    # ex_run('../sample_data/drama_sample_stereo.wav')
+    # main()
+    ex_run('../sample_data/drama_sample_stereo.wav')

@@ -27,6 +27,19 @@ def read_pos_lab_file(filename):
 
     return pos_lab_list
 
+def read_dualpos_lab_file(filename):
+    pos_lab_list = []
+    with open(filename,'r') as f:
+        while True:
+            line = f.readline()
+            if not line: break
+            ipos = long(line.split(' ')[0])
+            ipos2 = long(line.split(' ')[1])
+            ilab = line.split(' ')[2].strip()
+            pos_lab_list.append([ipos,ipos2,ilab])
+
+    return pos_lab_list
+
 def read_pos_lab_vad_file(filename):
     pos_lab_list = []
     with open(filename,'r') as f:
@@ -93,6 +106,43 @@ def fast_load_array_from_pos_lab_list(filename, pos_lab_list_, array_shape_=0):
             i += 1
 
     return _data_ary, _lab_list
+
+def fast_load_array_from_dualpos_lab_list(filename, pos_lab_list_, array_shape_=0):
+    # dualpos_lab_list : [ number_of_pos(string) number_of_pos2(string) label(string), ... ]
+    with open(filename,'rb') as f:
+        datalen = np.array(len(pos_lab_list_))
+
+        if array_shape_ == 0:
+            tmp_ary = np.load(f)
+            shape_ = np.append(datalen, tmp_ary.shape[:])
+            tmp_ary = np.load(f)
+            shape2_ = np.append(datalen, tmp_ary.shape[:])
+        else:
+            shape_ = np.append(datalen, array_shape_[:])
+
+        _data_ary = np.zeros(shape_)
+        _data_ary2 = np.zeros(shape2_)
+        _lab_list = ['None' for i in xrange(int(datalen))]
+        pos_lab_list = pos_lab_list_[:]
+        pos_lab_list.sort()
+
+        i = 0
+        pre_pos = f.tell()
+        for pos_, pos2_ ,lab_ in pos_lab_list:
+            mv_pos = pos_ - pre_pos
+            f.seek(mv_pos,1)
+            _data_ary[i] = np.load(f)
+            pre_pos = f.tell()
+
+            mv_pos = pos2_ - pre_pos
+            f.seek(mv_pos, 1)
+            _data_ary2[i] = np.load(f)
+            pre_pos = f.tell()
+
+            _lab_list[i] = lab_
+            i += 1
+
+    return _data_ary, _data_ary2, _lab_list
 
 def fast_load_array_from_pos_lab_vad_list(filename, pos_lab_list_, array_shape_=0):
     # pos_lab_list : [ number_of_pos(string) label(string), ... ]
