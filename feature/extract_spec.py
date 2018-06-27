@@ -66,33 +66,42 @@ def mel_to_freq(mel_):
     return (10**(mel_/2595.0) - 1.0)*700.0
 
 def mel_scale_range(fft_size_,sr_,n_mel_=64):
-    minfreq = 0
-    maxfreq = sr_ / 2.0
-
-    fft_size = fft_size_
-    fftstep = (sr_ / 2.0) / fft_size
-    fft2freq = np.arange(minfreq,maxfreq,fftstep)
-
-    melstep = (freq_to_mel(maxfreq) - freq_to_mel(minfreq)) / n_mel_
-    mel_range = np.arange(freq_to_mel(minfreq),freq_to_mel(maxfreq),melstep)
-    melfreq_range = mel_to_freq(mel_range)
-
-    melscale_inx = np.zeros((n_mel_,fft_size),dtype=bool)
+    melfilt = librosa.filters.mel(sr=sr_,n_fft=fft_size_,n_mels=n_mel_)
+    melscale_inx = np.zeros((n_mel_,melfilt.shape[1]),dtype=bool)
     melscale_dim = np.zeros(n_mel_,dtype=int)
-    fftrange = np.arange(fft_size)
 
     for i in xrange(n_mel_):
-        if i == (n_mel_-1): # last bin
-            inx = (melfreq_range[i] <= fft2freq)
-        else:
-            inx = ((melfreq_range[i] <= fft2freq) & (melfreq_range[i+1] > fft2freq))
+        melscale_inx[i] = (melfilt[i] > 0)
+        melscale_dim[i] = np.count_nonzero(melfilt[i])
 
-        melscale_inx[i] = inx
-        if not fftrange[inx].any():
-            assert('ERROR(mel_scale_range): %d mel-bin is empty, reduce number of mel' %(i))
 
-        melscale_dim[i] = int(fftrange[inx].shape[0])
-    return melscale_inx, melscale_dim
+    # minfreq = 0
+    # maxfreq = sr_ / 2.0
+    #
+    # fft_size = fft_size_
+    # fftstep = (sr_ / 2.0) / fft_size
+    # fft2freq = np.arange(minfreq,maxfreq,fftstep)
+    #
+    # melstep = (freq_to_mel(maxfreq) - freq_to_mel(minfreq)) / n_mel_
+    # mel_range = np.arange(freq_to_mel(minfreq),freq_to_mel(maxfreq),melstep)
+    # melfreq_range = mel_to_freq(mel_range)
+    #
+    # melscale_inx = np.zeros((n_mel_,fft_size),dtype=bool)
+    # melscale_dim = np.zeros(n_mel_,dtype=int)
+    # fftrange = np.arange(fft_size)
+    #
+    # for i in xrange(n_mel_):
+    #     if i == (n_mel_-1): # last bin
+    #         inx = (melfreq_range[i] <= fft2freq)
+    #     else:
+    #         inx = ((melfreq_range[i] <= fft2freq) & (melfreq_range[i+1] > fft2freq))
+    #
+    #     melscale_inx[i] = inx
+    #     if not fftrange[inx].any():
+    #         assert('ERROR(mel_scale_range): %d mel-bin is empty, reduce number of mel' %(i))
+    #
+    #     melscale_dim[i] = int(fftrange[inx].shape[0])
+    return melscale_inx, melscale_dim, melfilt
 
 def spec_zm(spec_data):
     ntime = spec_data.shape[1]
@@ -333,7 +342,15 @@ def ex_run(wavfile_,spec_type_='scispec',sample_rate_=16000,frame_size_=25,frame
 
     _, segment_time, spec_data = log_spec_scipy(wav_path, sr_, frame_size_, frame_shift_, fft_size)
     # segment_time2, spec_data2 = tempogram_librosa(wav_path, sr_, frame_size_, frame_shift_, fft_size)
-    mel_scale_range(spec_data,sr_=16000,n_mel_=64)
+    melinx, meldim, _ = mel_scale_range(2048,sr_=16000,n_mel_=64)
+    print melinx.shape, meldim
+    melfilt = librosa.filters.mel(sr=16000,n_fft=2048,n_mels=64)
+
+    fig = plt.figure(1)
+    for i in xrange(64):
+        plt.plot(melfilt[i])
+
+    # plt.show()
 
 
     # print spec_data.shape, spec_data2.shape
