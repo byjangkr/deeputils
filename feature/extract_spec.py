@@ -103,6 +103,17 @@ def mel_scale_range(fft_size_,sr_,n_mel_=64):
     #     melscale_dim[i] = int(fftrange[inx].shape[0])
     return melscale_inx, melscale_dim, melfilt
 
+def chroma_range(fft_size_,sr_,n_chroma_=12):
+    chromafilt = librosa.filters.chroma(sr=sr_,n_fft=fft_size_,n_chroma=n_chroma_)
+    chroma_inx = np.zeros((n_chroma_,chromafilt.shape[1]),dtype=bool)
+    chroma_dim = np.zeros(n_chroma_,dtype=int)
+
+    for i in xrange(n_chroma_):
+        chroma_inx[i] = (chromafilt[i] > 0)
+        chroma_dim[i] = np.count_nonzero(chromafilt[i])
+
+    return chroma_inx, chroma_dim, chromafilt
+
 def spec_zm(spec_data):
     ntime = spec_data.shape[1]
     mean_data = np.matlib.repmat(np.mean(spec_data,axis=1),ntime,1)
