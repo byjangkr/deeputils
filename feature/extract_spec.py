@@ -103,6 +103,17 @@ def mel_scale_range(fft_size_,sr_,n_mel_=64):
     #     melscale_dim[i] = int(fftrange[inx].shape[0])
     return melscale_inx, melscale_dim, melfilt
 
+def chroma_range(fft_size_,sr_,n_chroma_=12):
+    chromafilt = librosa.filters.chroma(sr=sr_,n_fft=fft_size_,n_chroma=n_chroma_)
+    chroma_inx = np.zeros((n_chroma_,chromafilt.shape[1]),dtype=bool)
+    chroma_dim = np.zeros(n_chroma_,dtype=int)
+
+    for i in xrange(n_chroma_):
+        chroma_inx[i] = (chromafilt[i] > 0)
+        chroma_dim[i] = np.count_nonzero(chromafilt[i])
+
+    return chroma_inx, chroma_dim, chromafilt
+
 def spec_zm(spec_data):
     ntime = spec_data.shape[1]
     mean_data = np.matlib.repmat(np.mean(spec_data,axis=1),ntime,1)
@@ -343,12 +354,29 @@ def ex_run(wavfile_,spec_type_='scispec',sample_rate_=16000,frame_size_=25,frame
     _, segment_time, spec_data = log_spec_scipy(wav_path, sr_, frame_size_, frame_shift_, fft_size)
     # segment_time2, spec_data2 = tempogram_librosa(wav_path, sr_, frame_size_, frame_shift_, fft_size)
     melinx, meldim, _ = mel_scale_range(2048,sr_=16000,n_mel_=64)
-    print melinx.shape, meldim
     melfilt = librosa.filters.mel(sr=16000,n_fft=2048,n_mels=64)
 
-    fig = plt.figure(1)
-    for i in xrange(64):
-        plt.plot(melfilt[i])
+    chromafilt12 = librosa.filters.chroma(sr=16000,n_fft=2048,n_chroma=12)
+    chromafilt24 = librosa.filters.chroma(sr=16000, n_fft=2048, n_chroma=24)
+    print chromafilt12[0], chromafilt24[0]
+
+    ## figure melscale filter
+    # fig = plt.figure(1)
+    # for i in xrange(64):
+    #     plt.plot(melfilt[i])
+
+    ## figure chroma filter
+    # fig = plt.figure(1)
+    # for i in xrange(24):
+    #     plt.plot(chromafilt24[i])
+
+    ## figure chroma 12 VS 24
+    # fig = plt.figure(1)
+    # plt.plot(chromafilt12[0])
+    # plt.plot(chromafilt12[1])
+    # plt.plot(chromafilt24[0])
+    # plt.plot(chromafilt24[1])
+    # plt.legend(('12-0','12-1','24-0','24-1'))
 
     # plt.show()
 
