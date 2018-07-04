@@ -391,20 +391,28 @@ def main():
         fft_size_ = o.fft_size
 
     if spec_type == 'tfspec':
+	print 'extract feature - tensoflow_spectrogram'
         spec_data = log_spec_tensorflow(wav_path,sr_,frame_size_,frame_shift_)
     elif spec_type == 'tfmfcc':
+	print 'extract feature - tensorflow_mfcc'
         spec_data = mfcc_tensorflow(wav_path,sr_,frame_size_,frame_shift_,order=13)
     elif spec_type == 'scispec':
+	print 'extract feature - scipy_spectrogram'
         _, _, spec_data = log_spec_scipy(wav_path,sr_,frame_size_,frame_shift_,fft_size_)
     elif spec_type == 'rosaspec':
+	print 'extract feature - librosa_spectrogram'
         _, spec_data = log_spec_librosa(wav_path,sr_,frame_size_,frame_shift_,fft_size_)
     elif spec_type == 'rosamelspec':
+	print 'extract feature - librosa_mel-scale_spectrogram'
         spec_data = mel_spec_librosa(wav_path,sr_,frame_size_,frame_shift_,fft_size_)
     elif spec_type == 'rosachroma':
+	print 'extract feature - librosa_chromagram'
         spec_data = chroma_spec_librosa(wav_path,sr_,frame_size_,frame_shift_,fft_size_)
     elif spec_type == 'rosamfcc':
+	print 'extract feature - librosa_mfcc'
         spec_data = mfcc_librosa(wav_path, sr_, frame_size_, frame_shift_, fft_size_)
     else:
+	print 'extract feature - default(scipy_spectrogram)'
         _, _, spec_data = log_spec_scipy(wav_path,sr_,frame_size_,frame_shift_,fft_size_)
 
     if o.plot_spec == 'True':
