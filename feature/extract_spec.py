@@ -281,12 +281,12 @@ def mfccdel_librosa(wavfile, _sr, frame_size, frame_shift, fft_size, n_mels_=64,
     return segment_time, mfccdel
 
 # compute chroma spectrogram using 'librosa' : 'rosachroma'
-def chroma_spec_librosa(wavfile, _sr, frame_size, frame_shift, fft_size):
+def chroma_spec_librosa(wavfile, _sr, frame_size, frame_shift, fft_size, n_chroma_=12):
     data, fs = librosa.load(wavfile, sr=None)
     check_sample_rate(wavfile,_sr,fs)
     spec_data = librosa.core.stft(data, n_fft=fft_size, hop_length=frame_shift, win_length=frame_size,
                                   window='hann', center=False)
-    chroma_data = librosa.feature.chroma_stft(sr=fs,S=spec_data)
+    chroma_data = librosa.feature.chroma_stft(sr=fs,S=spec_data,n_fft=fft_size, n_chroma=n_chroma_)
 
     segtime = segment_time_librosa(len(data),fs,frame_size,frame_shift)
     segment_time = segtime[0:int(chroma_data.shape[1])]
@@ -356,9 +356,12 @@ def ex_run(wavfile_,spec_type_='scispec',sample_rate_=16000,frame_size_=25,frame
     melinx, meldim, _ = mel_scale_range(2048,sr_=16000,n_mel_=64)
     melfilt = librosa.filters.mel(sr=16000,n_fft=2048,n_mels=64)
 
-    chromafilt12 = librosa.filters.chroma(sr=16000,n_fft=2048,n_chroma=12)
-    chromafilt24 = librosa.filters.chroma(sr=16000, n_fft=2048, n_chroma=24)
-    print chromafilt12[0], chromafilt24[0]
+    # semitones
+    chromafilt12 = librosa.filters.chroma(sr=16000,n_fft=2048,n_chroma=12,A440=440.0)
+    # quarter-tone
+    chromafilt24 = librosa.filters.chroma(sr=16000, n_fft=2048, n_chroma=24,A440=440.0)
+    print chromafilt12[0]
+    print chromafilt24[1]
 
     ## figure melscale filter
     # fig = plt.figure(1)
@@ -370,15 +373,16 @@ def ex_run(wavfile_,spec_type_='scispec',sample_rate_=16000,frame_size_=25,frame
     # for i in xrange(24):
     #     plt.plot(chromafilt24[i])
 
-    ## figure chroma 12 VS 24
-    # fig = plt.figure(1)
-    # plt.plot(chromafilt12[0])
-    # plt.plot(chromafilt12[1])
-    # plt.plot(chromafilt24[0])
-    # plt.plot(chromafilt24[1])
-    # plt.legend(('12-0','12-1','24-0','24-1'))
+    # figure chroma 12 VS 24
+    fig = plt.figure(1)
+    plt.plot(chromafilt12[0])
+    plt.plot(chromafilt12[10])
+    plt.plot(chromafilt24[3])
+    plt.plot(chromafilt24[23])
+    plt.axis([0, 1000, 0, 1])
+    plt.legend(('1 of 12','11 of 12','3 of 24','24 of 24'))
 
-    # plt.show()
+    plt.show()
 
 
     # print spec_data.shape, spec_data2.shape
@@ -402,6 +406,12 @@ def main():
                       default=10, type='int')
     parser.add_option('--fft-size', dest='fft_size', help='fft size [default: frame size ]',
                       default=-1, type='int')
+    parser.add_option('--fmin', dest='fmin', help='minimum frequency for mel-scale [default: 0 Hz ]',
+                      default=0, type='float')
+    parser.add_option('--fmax', dest='fmax', help='maximum frequency for mel-scale [default: (sample_rate/2) Hz ]',
+                      default=-1, type='float')
+    parser.add_option('--num-chroma', dest='n_chroma', help='number of bin in chroma filter [default: 12 (semitones) ]',
+                      default=12, type='int')
     parser.add_option('--plot-spec', dest='plot_spec', help='plot spectrogram  [default: False ]',
                       default='False', type='string')
 
@@ -412,11 +422,18 @@ def main():
     sr_ = o.sample_rate
     frame_size_ = np.int(o.frame_size * sr_ * 0.001)
     frame_shift_ = np.int(o.frame_shift * sr_ * 0.001)
+    fmin = o.fmin
+    n_chroma = o.n_chroma
 
     if o.fft_size == -1:
         fft_size_ = frame_size_
     else:
         fft_size_ = o.fft_size
+
+    if o.fmax == -1:
+        fmax = (sr_/2.0)
+    else:
+        fmax = o.fmax
 
     if spec_type == 'tfspec':
 	print 'extract feature - tensoflow_spectrogram'
@@ -432,13 +449,13 @@ def main():
         _, spec_data = log_spec_librosa(wav_path,sr_,frame_size_,frame_shift_,fft_size_)
     elif spec_type == 'rosamelspec':
 	print 'extract feature - librosa_mel-scale_spectrogram'
-        spec_data = mel_spec_librosa(wav_path,sr_,frame_size_,frame_shift_,fft_size_)
+        spec_data = mel_spec_librosa(wav_path,sr_,frame_size_,frame_shift_,fft_size_,fmin_=fmin,fmax_=fmax)
     elif spec_type == 'rosachroma':
 	print 'extract feature - librosa_chromagram'
-        spec_data = chroma_spec_librosa(wav_path,sr_,frame_size_,frame_shift_,fft_size_)
+        spec_data = chroma_spec_librosa(wav_path,sr_,frame_size_,frame_shift_,fft_size_,n_chroma_=n_chroma)
     elif spec_type == 'rosamfcc':
 	print 'extract feature - librosa_mfcc'
-        spec_data = mfcc_librosa(wav_path, sr_, frame_size_, frame_shift_, fft_size_)
+        spec_data = mfcc_librosa(wav_path, sr_, frame_size_, frame_shift_, fft_size_,fmin_=fmin,fmax_=fmax)
     else:
 	print 'extract feature - default(scipy_spectrogram)'
         _, _, spec_data = log_spec_scipy(wav_path,sr_,frame_size_,frame_shift_,fft_size_)
