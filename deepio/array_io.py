@@ -1,4 +1,6 @@
 import numpy as np
+import time
+import random
 
 def save_append_array(filename, array_):
     with open(filename,'ab') as f:
@@ -80,6 +82,36 @@ def fast_load_array_from_poslist(filename, poslist_, array_shape_=0):
 
 def fast_load_array_from_pos_lab_list(filename, pos_lab_list_, array_shape_=0):
     # pos_lab_list : [ number_of_pos(string) label(string), ... ]
+    with open(filename,'rb') as f:
+        datalen = np.array(len(pos_lab_list_))
+
+        if array_shape_ == 0:
+            tmp_ary = np.load(f)
+            shape_ = np.append(datalen, tmp_ary.shape[:])
+        else:
+            shape_ = np.append(datalen, array_shape_[:])
+
+        _data_ary = np.zeros(shape_)
+        _lab_list = ['None' for i in xrange(int(datalen))]
+        pos_lab_list = pos_lab_list_[:]
+        pos_lab_list.sort()
+
+        i = 0
+        pre_pos = f.tell()
+        for pos_, lab_ in pos_lab_list:
+            mv_pos = pos_ - pre_pos
+            f.seek(mv_pos,1)
+
+            _data_ary[i] = np.load(f)
+            _lab_list[i] = lab_
+            pre_pos = f.tell()
+            i += 1
+
+    return _data_ary, _lab_list
+
+def fast_load_array_from_pos_lab_list_mulithread(filename, pos_lab_list_, array_shape_=0, nthread=1):
+    # pos_lab_list : [ number_of_pos(string) label(string), ... ]
+    # using multi-thread
     with open(filename,'rb') as f:
         datalen = np.array(len(pos_lab_list_))
 
@@ -192,6 +224,23 @@ def main():
     poslist = [pos_a,pos_b]
     data_ary = fast_load_array_from_poslist(aryfile,poslist)
     # print data_ary
+
+def ex_run_multithread():
+
+    posfile = '/home2/byjang/project/music_detection/MD_fork/exp/cnn_spec_5class_nozmvn/egs/spec_data.pos'
+    datfile = '/home2/byjang/project/music_detection/MD_fork/exp/cnn_spec_5class_nozmvn/egs/spec_data.npy'
+    pos_lab_list = read_pos_lab_file(posfile)
+    random.shuffle(pos_lab_list)
+
+    beg_time = time.strtime('%H%M%S')
+    print "Start load - %s " % (beg_time)
+    val_data, val_lab_list = fast_load_array_from_pos_lab_list(datfile, pos_lab_list[0:26619])
+
+    end_time = time.strtime('%H%M%S')
+    print "End load - %s " % (end_time)
+
+
+
 
 
 

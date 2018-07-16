@@ -109,8 +109,9 @@ def chroma_range(fft_size_,sr_,n_chroma_=12):
     chroma_dim = np.zeros(n_chroma_,dtype=int)
 
     for i in xrange(n_chroma_):
-        chroma_inx[i] = (chromafilt[i] > 0)
-        chroma_dim[i] = np.count_nonzero(chromafilt[i])
+        chroma_inx[i] = (chromafilt[i] > 0.2)
+        # chroma_dim[i] = np.count_nonzero(chromafilt[i])
+        chroma_dim[i] = np.sum(chroma_inx[i])
 
     return chroma_inx, chroma_dim, chromafilt
 
@@ -284,14 +285,16 @@ def mfccdel_librosa(wavfile, _sr, frame_size, frame_shift, fft_size, n_mels_=64,
 def chroma_spec_librosa(wavfile, _sr, frame_size, frame_shift, fft_size, n_chroma_=12):
     data, fs = librosa.load(wavfile, sr=None)
     check_sample_rate(wavfile,_sr,fs)
-    spec_data = librosa.core.stft(data, n_fft=fft_size, hop_length=frame_shift, win_length=frame_size,
+    S = librosa.core.stft(data, n_fft=fft_size, hop_length=frame_shift, win_length=frame_size,
                                   window='hann', center=False)
-    chroma_data = librosa.feature.chroma_stft(sr=fs,S=spec_data,n_fft=fft_size, n_chroma=n_chroma_)
+    abs_S = np.abs(S)**2
+    chroma_data = librosa.feature.chroma_stft(sr=fs,S=abs_S,n_fft=fft_size, n_chroma=n_chroma_)
+    log_S = librosa.power_to_db(chroma_data)
 
     segtime = segment_time_librosa(len(data),fs,frame_size,frame_shift)
     segment_time = segtime[0:int(chroma_data.shape[1])]
 
-    return segment_time, chroma_data
+    return segment_time, log_S
 
 # compute chroma spectrogram using 'librosa' : 'rosatempo'
 def tempogram_librosa(wavfile, _sr, frame_size, frame_shift, fft_size):
@@ -351,17 +354,19 @@ def ex_run(wavfile_,spec_type_='scispec',sample_rate_=16000,frame_size_=25,frame
     frame_shift_ = np.int(frame_shift_ * sr_ * 0.001)
     fft_size = fft_size_
 
-    _, segment_time, spec_data = log_spec_scipy(wav_path, sr_, frame_size_, frame_shift_, fft_size)
+    # _, segment_time, spec_data = log_spec_scipy(wav_path, sr_, frame_size_, frame_shift_, fft_size)
+    _, spec_data = chroma_spec_librosa(wav_path, sr_, frame_size_, frame_shift_, fft_size, n_chroma_=12)
+    print spec_data[0]
     # segment_time2, spec_data2 = tempogram_librosa(wav_path, sr_, frame_size_, frame_shift_, fft_size)
     melinx, meldim, _ = mel_scale_range(2048,sr_=16000,n_mel_=64)
     melfilt = librosa.filters.mel(sr=16000,n_fft=2048,n_mels=64)
 
     # semitones
-    chromafilt12 = librosa.filters.chroma(sr=16000,n_fft=2048,n_chroma=12,A440=440.0)
-    # quarter-tone
-    chromafilt24 = librosa.filters.chroma(sr=16000, n_fft=2048, n_chroma=24,A440=440.0)
-    print chromafilt12[0]
-    print chromafilt24[1]
+    # chromafilt12 = librosa.filters.chroma(sr=16000,n_fft=fft_size_,n_chroma=12,A440=440.0)
+    # # quarter-tone
+    # chromafilt24 = librosa.filters.chroma(sr=16000, n_fft=fft_size_, n_chroma=24,A440=440.0)
+    # print (chromafilt12[0] > 0.1)
+    # print chromafilt24[1]
 
     ## figure melscale filter
     # fig = plt.figure(1)
@@ -374,15 +379,15 @@ def ex_run(wavfile_,spec_type_='scispec',sample_rate_=16000,frame_size_=25,frame
     #     plt.plot(chromafilt24[i])
 
     # figure chroma 12 VS 24
-    fig = plt.figure(1)
-    plt.plot(chromafilt12[0])
-    plt.plot(chromafilt12[10])
-    plt.plot(chromafilt24[3])
-    plt.plot(chromafilt24[23])
-    plt.axis([0, 1000, 0, 1])
-    plt.legend(('1 of 12','11 of 12','3 of 24','24 of 24'))
-
-    plt.show()
+    # fig = plt.figure(1)
+    # plt.plot(chromafilt12[0])
+    # plt.plot(chromafilt12[10])
+    # plt.plot(chromafilt24[3])
+    # plt.plot(chromafilt24[23])
+    # plt.axis([0, 100, 0, 1])
+    # plt.legend(('1 of 12','11 of 12','3 of 24','24 of 24'))
+    #
+    # plt.show()
 
 
     # print spec_data.shape, spec_data2.shape
