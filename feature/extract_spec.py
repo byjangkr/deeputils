@@ -282,13 +282,13 @@ def mfccdel_librosa(wavfile, _sr, frame_size, frame_shift, fft_size, n_mels_=64,
     return segment_time, mfccdel
 
 # compute chroma spectrogram using 'librosa' : 'rosachroma'
-def chroma_spec_librosa(wavfile, _sr, frame_size, frame_shift, fft_size, n_chroma_=12, fmin_=0, fmax_=8000):
+def chroma_spec_librosa(wavfile, _sr, frame_size, frame_shift, fft_size, n_chroma_=12):
     data, fs = librosa.load(wavfile, sr=None)
     check_sample_rate(wavfile,_sr,fs)
     S = librosa.core.stft(data, n_fft=fft_size, hop_length=frame_shift, win_length=frame_size,
                                   window='hann', center=False)
     abs_S = np.abs(S)**2
-    chroma_data = librosa.feature.chroma_stft(sr=fs,S=abs_S,n_fft=fft_size, n_chroma=n_chroma_, fmin=fmin_, fmax=fmax_)
+    chroma_data = librosa.feature.chroma_stft(sr=fs,S=abs_S,n_fft=fft_size, n_chroma=n_chroma_)
     log_S = librosa.power_to_db(chroma_data)
 
     segtime = segment_time_librosa(len(data),fs,frame_size,frame_shift)
