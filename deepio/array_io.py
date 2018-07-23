@@ -1,6 +1,7 @@
 import numpy as np
 import time
 import random
+import h5py
 
 def save_append_array(filename, array_):
     with open(filename,'ab') as f:
@@ -8,6 +9,28 @@ def save_append_array(filename, array_):
         np.save(f,array_)
 
     return pos
+
+def save_append_h5py(filename, key_, array_, attr_key_ ,lab_):
+    with h5py.File(filename, 'a') as hf:
+        h = hf.create_dataset(key_, data=array_, dtype=np.float32)
+        h.attrs[attr_key_] = lab_
+
+def load_h5py_from_poslist(filename, poslist_):
+    with h5py.File(filename,'r') as hf:
+        datalen = int(len(poslist_))
+        data_shape = np.array(hf.get(poslist_[0].strip())).shape
+        shape_ = np.append(datalen, data_shape[:])
+
+        _data_ary = np.zeros(shape_)
+        _lab_list = ['None' for i in xrange(int(datalen))]
+
+        for i in xrange(datalen):
+            key_ = poslist_[i].strip()
+            _data_ary[i] = hf.get(key_)
+            _lab_list[i] = hf.get(key_).attrs["label"]
+
+    return _data_ary, _lab_list
+
 
 def load_array_from_pos(filename, pos_):
     with open(filename,'rb') as f:
@@ -91,7 +114,7 @@ def fast_load_array_from_pos_lab_list(filename, pos_lab_list_, array_shape_=0):
         else:
             shape_ = np.append(datalen, array_shape_[:])
 
-        _data_ary = np.zeros(shape_)
+        _data_ary = np.zeros(shape_,dtype=np.float32)
         _lab_list = ['None' for i in xrange(int(datalen))]
         pos_lab_list = pos_lab_list_[:]
         pos_lab_list.sort()
@@ -229,15 +252,52 @@ def ex_run_multithread():
 
     posfile = '/home2/byjang/project/music_detection/MD_fork/exp/cnn_spec_5class_nozmvn/egs/spec_data.pos'
     datfile = '/home2/byjang/project/music_detection/MD_fork/exp/cnn_spec_5class_nozmvn/egs/spec_data.npy'
+    h5posfile = '/home2/byjang/project/music_detection/MD_fork/exp/cnn_spec_5class_nozmvn_h5py/egs/spec_data.pos'
+    h5file = '/home2/byjang/project/music_detection/MD_fork/exp/cnn_spec_5class_nozmvn_h5py/egs/spec_data.npy'
     pos_lab_list = read_pos_lab_file(posfile)
     random.shuffle(pos_lab_list)
 
-    beg_time = time.strtime('%H%M%S')
-    print "Start load - %s " % (beg_time)
-    val_data, val_lab_list = fast_load_array_from_pos_lab_list(datfile, pos_lab_list[0:26619])
+    with open(h5posfile,'r') as f:
+        pos_lab_list_h5 = f.readlines()
 
-    end_time = time.strtime('%H%M%S')
+    random.shuffle(pos_lab_list_h5)
+
+    beg_time = time.strftime('%H%M%S')
+    print "Start load - %s " % (beg_time)
+    val_data, val_lab_list = fast_load_array_from_pos_lab_list(datfile, pos_lab_list[0:5000])
+    end_time = time.strftime('%H%M%S')
     print "End load - %s " % (end_time)
+
+    beg_time = time.strftime('%H%M%S')
+    print "Start load - %s " % (beg_time)
+    _, _ = load_h5py_from_poslist(h5file, pos_lab_list_h5[0:5000])
+
+    end_time = time.strftime('%H%M%S')
+    print "End load - %s " % (end_time)
+
+    # hf = h5py.File(h5file,'w')
+    # h5d1 = hf.create_dataset('data1',data=val_data[0],dtype=np.float32)
+    # h5d1.attrs["label"] = val_lab_list[0]
+    # hf.close()
+    #
+    # hf = h5py.File(h5file, 'a')
+    # hf.create_dataset('data2', data=val_data[1])
+    # hf.create_dataset('data2_lab', data=val_lab_list[1])
+    # hf.close()
+    #
+    #
+    #
+    # hf = h5py.File(h5file, 'r')
+    # d1 = np.array(hf.get('data1'))
+    # d1_lab = hf.get('data1').attrs["label"]
+    #
+    # d2 = hf.get('data2')
+    # d2_lab =  hf.get('data1').attrs["label"]
+
+
+    # print d1[0], d1_lab
+    # print d2[0], d2_lab
+
 
 
 
@@ -245,5 +305,6 @@ def ex_run_multithread():
 
 
 if __name__=="__main__":
-    main()
+    # main()
+    ex_run_multithread()
 

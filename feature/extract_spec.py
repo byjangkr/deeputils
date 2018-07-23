@@ -282,13 +282,13 @@ def mfccdel_librosa(wavfile, _sr, frame_size, frame_shift, fft_size, n_mels_=64,
     return segment_time, mfccdel
 
 # compute chroma spectrogram using 'librosa' : 'rosachroma'
-def chroma_spec_librosa(wavfile, _sr, frame_size, frame_shift, fft_size, n_chroma_=12):
+def chroma_spec_librosa(wavfile, _sr, frame_size, frame_shift, fft_size, n_chroma_=12, fmin_=0, fmax_=8000):
     data, fs = librosa.load(wavfile, sr=None)
     check_sample_rate(wavfile,_sr,fs)
     S = librosa.core.stft(data, n_fft=fft_size, hop_length=frame_shift, win_length=frame_size,
                                   window='hann', center=False)
     abs_S = np.abs(S)**2
-    chroma_data = librosa.feature.chroma_stft(sr=fs,S=abs_S,n_fft=fft_size, n_chroma=n_chroma_)
+    chroma_data = librosa.feature.chroma_stft(sr=fs,S=abs_S,n_fft=fft_size, n_chroma=n_chroma_, fmin=fmin_, fmax=fmax_)
     log_S = librosa.power_to_db(chroma_data)
 
     segtime = segment_time_librosa(len(data),fs,frame_size,frame_shift)
@@ -355,7 +355,7 @@ def ex_run(wavfile_,spec_type_='scispec',sample_rate_=16000,frame_size_=25,frame
     fft_size = fft_size_
 
     # _, segment_time, spec_data = log_spec_scipy(wav_path, sr_, frame_size_, frame_shift_, fft_size)
-    _, spec_data = chroma_spec_librosa(wav_path, sr_, frame_size_, frame_shift_, fft_size, n_chroma_=12)
+    _, spec_data = chroma_spec_librosa(wav_path, sr_, frame_size_, frame_shift_, fft_size, n_chroma_=24)
     print spec_data[0]
     # segment_time2, spec_data2 = tempogram_librosa(wav_path, sr_, frame_size_, frame_shift_, fft_size)
     melinx, meldim, _ = mel_scale_range(2048,sr_=16000,n_mel_=64)
@@ -478,4 +478,4 @@ def main():
 
 if __name__=="__main__":
     # main()
-    ex_run('../sample_data/drama_sample_stereo.wav')
+    ex_run('/home2/byjang/corpus/music_speech_detection/test/british_temp/british_docu_001_3.wav')
