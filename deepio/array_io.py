@@ -132,6 +132,32 @@ def fast_load_array_from_pos_lab_list(filename, pos_lab_list_, array_shape_=0):
 
     return _data_ary, _lab_list
 
+def fast_load_array_from_pos_lab_list_with_filter(filename, pos_lab_list_,filter,):
+    # pos_lab_list : [ number_of_pos(string) label(string), ... ]
+    with open(filename,'rb') as f:
+        datalen = np.array(len(pos_lab_list_))
+
+        tmp_ary = np.load(f)
+        shape_ = np.append(datalen, np.array([filter.shape[0], tmp_ary.shape[1]]))
+
+        _data_ary = np.zeros(shape_,dtype=np.float32)
+        _lab_list = ['None' for i in xrange(int(datalen))]
+        pos_lab_list = pos_lab_list_[:]
+        pos_lab_list.sort()
+
+        i = 0
+        pre_pos = f.tell()
+        for pos_, lab_ in pos_lab_list:
+            mv_pos = pos_ - pre_pos
+            f.seek(mv_pos,1)
+
+            _data_ary[i] = np.dot(filter,np.load(f))
+            _lab_list[i] = lab_
+            pre_pos = f.tell()
+            i += 1
+
+    return _data_ary, _lab_list
+
 def fast_load_array_from_pos_lab_list_mulithread(filename, pos_lab_list_, array_shape_=0, nthread=1):
     # pos_lab_list : [ number_of_pos(string) label(string), ... ]
     # using multi-thread
