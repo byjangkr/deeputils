@@ -226,6 +226,9 @@ def abs_spec_librosa(wavfile, _sr, frame_size, frame_shift, fft_size):
     return  segment_time, out_spec_data
 
 # for absspec
+def spec2logspec(S_):
+     return librosa.power_to_db(S_)
+
 def spec2melspec(S_, sr_, n_mels_=64, fmin_=20, fmax_=7400):
     melspec = librosa.feature.melspectrogram(sr=sr_, S=S_,
                                        n_mels=n_mels_, fmin=fmin_, fmax=fmax_)  # parameter for mel-filter
