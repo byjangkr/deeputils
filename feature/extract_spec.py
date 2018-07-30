@@ -210,6 +210,37 @@ def segment_time_librosa(wav_length,fs,frame_size,frame_shift):
     segment_time = beg_time + (float(frame_size)/float(fs))/2.0
     return segment_time
 
+
+
+# compute abs-spectrogram using 'librosa' : 'absspec'
+def abs_spec_librosa(wavfile, _sr, frame_size, frame_shift, fft_size):
+    data, fs = librosa.load(wavfile,sr=None)
+    check_sample_rate(wavfile,_sr,fs)
+    S = librosa.core.stft(data,n_fft=fft_size,hop_length=frame_shift,win_length=frame_size,
+                                  window='hann',center=False)
+    out_spec_data  = np.abs(S)**2
+
+    segtime = segment_time_librosa(len(data),fs,frame_size,frame_shift)
+    segment_time = segtime[0:int(out_spec_data.shape[1])]
+
+    return  segment_time, out_spec_data
+
+# for absspec
+def spec2melspec(S_, sr_, n_mels_=64, fmin_=20, fmax_=7400):
+    melspec = librosa.feature.melspectrogram(sr=sr_, S=S_,
+                                       n_mels=n_mels_, fmin=fmin_, fmax=fmax_)  # parameter for mel-filter
+    log_melspec = librosa.power_to_db(melspec)
+
+    return log_melspec
+
+def spec2chroma(S_, sr_, fft_size_, n_chroma_=24):
+
+    chroma = librosa.feature.chroma_stft(sr=sr_, S=S_, n_fft=fft_size_, n_chroma=n_chroma_)
+    log_chroma = librosa.power_to_db(chroma)
+
+    return log_chroma
+
+
 # compute log-spectrogram using 'librosa' : 'rosaspec'
 def log_spec_librosa(wavfile, _sr, frame_size, frame_shift, fft_size):
     data, fs = librosa.load(wavfile,sr=None)
