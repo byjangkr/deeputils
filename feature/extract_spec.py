@@ -187,6 +187,10 @@ def log_spec_scipy(wavfile, _sr, frame_size, frame_shift, fft_size):
     if len(data.shape) > 1:
         data = (data[:,0] + data[:,1])/2
     check_sample_rate(wavfile,_sr,sample_rate)
+    # padding wav data for restore frame
+    pad_size = fft_size - frame_shift - int(data.shape[0] % frame_shift)
+    data = np.pad(data,(0,pad_size),'edge')
+
     # if nfft is 'None', fft size is 'nperseg'
     sample_freq, segment_time, spec_data = scipy.signal.spectrogram(data, fs=sample_rate,
                                                                     window='hann', nperseg=frame_size,
@@ -229,8 +233,8 @@ def abs_spec_librosa(wavfile, _sr, frame_size, frame_shift, fft_size):
 def spec2logspec(S_):
      return librosa.power_to_db(S_)
 
-def spec2melspec(S_, sr_, n_mels_=64, fmin_=20, fmax_=7400):
-    melspec = librosa.feature.melspectrogram(sr=sr_, S=S_,
+def spec2melspec(S_, sr_, fft_size_, n_mels_=64, fmin_=20, fmax_=7400):
+    melspec = librosa.feature.melspectrogram(sr=sr_, S=S_,n_fft=fft_size_,
                                        n_mels=n_mels_, fmin=fmin_, fmax=fmax_)  # parameter for mel-filter
     log_melspec = librosa.power_to_db(melspec)
 
@@ -268,6 +272,10 @@ def log_spec_librosa(wavfile, _sr, frame_size, frame_shift, fft_size):
 def mel_spec_librosa(wavfile, _sr, frame_size, frame_shift, fft_size, n_mels_=64, fmin_=0.0, fmax_=8000):
     data, fs = librosa.load(wavfile,sr=None)
     check_sample_rate(wavfile,_sr,fs)
+
+    pad_size = fft_size - frame_shift - int(data.shape[0] % frame_shift)
+    data = np.pad(data, (0, pad_size), 'edge')
+
     spec_data = librosa.core.stft(data,n_fft=fft_size,hop_length=frame_shift,win_length=frame_size,
                                   window='hann',center=False)
     S = librosa.feature.melspectrogram(sr=fs,S=(np.abs(spec_data)**2),
@@ -389,11 +397,28 @@ def ex_run(wavfile_,spec_type_='scispec',sample_rate_=16000,frame_size_=25,frame
     fft_size = fft_size_
 
     # _, segment_time, spec_data = log_spec_scipy(wav_path, sr_, frame_size_, frame_shift_, fft_size)
-    _, spec_data = chroma_spec_librosa(wav_path, sr_, frame_size_, frame_shift_, fft_size, n_chroma_=24)
-    print spec_data[0]
+    #seg_time, spec_data = chroma_spec_librosa(wav_path, sr_, frame_size_, frame_shift_, fft_size, n_chroma_=24)
+
+    # _, seg_time, spec_data = log_spec_scipy(wav_path, sr_, frame_size_, frame_shift_, fft_size)
+    # print seg_time.shape
+
+    _, _, spec_data1 = log_spec_scipy(wav_path, sr_, frame_size_, frame_shift_, fft_size)
+    _, spec_data2 = mel_spec_librosa(wav_path, sr_, frame_size_, frame_shift_, fft_size)
+    wav_samples = 9342500
+    time_sec = wav_samples/16000.0
+    want_frame_num = int(time_sec / 0.01)
+
+    print want_frame_num
+    print spec_data1.shape[1], spec_data2.shape[1]
+
+
+
+
+
+
     # segment_time2, spec_data2 = tempogram_librosa(wav_path, sr_, frame_size_, frame_shift_, fft_size)
-    melinx, meldim, _ = mel_scale_range(2048,sr_=16000,n_mel_=64)
-    melfilt = librosa.filters.mel(sr=16000,n_fft=2048,n_mels=64)
+    # melinx, meldim, _ = mel_scale_range(2048,sr_=16000,n_mel_=64)
+    # melfilt = librosa.filters.mel(sr=16000,n_fft=2048,n_mels=64)
 
     # semitones
     # chromafilt12 = librosa.filters.chroma(sr=16000,n_fft=fft_size_,n_chroma=12,A440=440.0)
@@ -512,4 +537,4 @@ def main():
 
 if __name__=="__main__":
     # main()
-    ex_run('/home2/byjang/corpus/music_speech_detection/test/british_temp/british_docu_001_3.wav')
+    ex_run('/Databases/music_speech_detection/test/british_temp/british_docu_001_3.wav')
