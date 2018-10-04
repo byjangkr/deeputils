@@ -74,7 +74,8 @@ class Model:
     def make_convolutional_layer(self,inputs_,filters_, kernel_size_=[3, 3], activation_=tf.nn.relu, padding_='SAME' ,name_='conv'):
         if self.use_bn:
             conv_1 = tf.layers.conv2d(inputs=inputs_, filters=filters_, kernel_size=kernel_size_, padding=padding_, activation=None, name=name_)
-            conv_2 = tf.contrib.layers.batch_norm(conv_1, center=True, scale=True, is_training=self.training)
+            # conv_2 = tf.contrib.layers.batch_norm(conv_1, center=True, scale=True, is_training=self.training)
+            conv_2 = tf.layers.batch_normalization(conv_1,training=self.training)
             conv_out = activation_(conv_2)
         else:
             conv_out = tf.layers.conv2d(inputs=inputs_, filters=filters_, kernel_size=kernel_size_, padding=padding_, activation=tf.nn.relu, name=name_)
@@ -178,7 +179,7 @@ class Model:
 
             if self.use_bn:
                 fc4_1 = tf.layers.dense(inputs=flat4, units=2048, activation=None)
-                fc4_2 = tf.contrib.layers.batch_norm(fc4_1, center=True, scale=True, is_training=self.training)
+                fc4_2 = tf.layers.batch_normalization(fc4_1, training=self.training)
                 fc4 = tf.nn.relu(fc4_2)
             else:
                 fc4 = tf.layers.dense(inputs=flat4, units=2048, activation=tf.nn.relu)
@@ -192,7 +193,7 @@ class Model:
 
             if self.use_bn:
                 fc5_1 = tf.layers.dense(inputs=fout4, units=1028, activation=None)
-                fc5_2 = tf.contrib.layers.batch_norm(fc5_1, center=True, scale=True, is_training=self.training)
+                fc5_2 = tf.layers.batch_normalization(fc5_1, training=self.training)
                 fc5 = tf.nn.relu(fc5_2)
             else:
                 fc5 = tf.layers.dense(inputs=fout4, units=1028, activation=tf.nn.relu)
@@ -261,7 +262,7 @@ if __name__ == '__main__':
     ''' Example of build model'''
     x = tf.placeholder(tf.float32,shape=[None,257,101])
     mdl = Model()
-    mdl.set_regularization_parmeters(use_bn=False,use_dr=True)
+    mdl.set_regularization_parmeters(use_bn=True,use_dr=False)
     mdl.set_multiconv_parameters(fft_size=512,sample_rate=16000,multi_kernel_row_size=64,multi_kernel_col_size=5,multi_kernel_n_filters=3,type_multiscale='mel')
     mdl.set_rnn_parameters(rnn_layers=2,type_rnn='GRU',use_bidirection=True,use_past_out=False)
     out_y = mdl.build_cnn_model(x,out_dim=2)
