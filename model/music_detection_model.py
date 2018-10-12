@@ -74,7 +74,6 @@ class Model:
     def make_convolutional_layer(self,inputs_,filters_, kernel_size_=[3, 3], activation_=tf.nn.relu, padding_='SAME' ,name_='conv'):
         if self.use_bn:
             conv_1 = tf.layers.conv2d(inputs=inputs_, filters=filters_, kernel_size=kernel_size_, padding=padding_, activation=None, name=name_)
-            # conv_2 = tf.contrib.layers.batch_norm(conv_1, center=True, scale=True, is_training=self.training)
             conv_2 = tf.layers.batch_normalization(conv_1,training=self.training)
             conv_out = activation_(conv_2)
         else:
@@ -121,6 +120,9 @@ class Model:
                 logits=logits_, labels=labels_, name="cross_entropy"))
 
         return loss
+
+    def count_trainable_parameters(self):
+        return tf.reduce_sum([tf.reduce_prod(v.shape) for v in tf.trainable_variables()])
 
     def print_variable_list(self):
         print tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
@@ -260,16 +262,17 @@ class Model:
 if __name__ == '__main__':
 
     ''' Example of build model'''
-    x = tf.placeholder(tf.float32,shape=[None,257,101])
+    x = tf.placeholder(tf.float32,shape=[None,64,101])
     mdl = Model()
-    mdl.set_regularization_parmeters(use_bn=True,use_dr=False)
-    mdl.set_multiconv_parameters(fft_size=512,sample_rate=16000,multi_kernel_row_size=64,multi_kernel_col_size=5,multi_kernel_n_filters=3,type_multiscale='mel')
-    mdl.set_rnn_parameters(rnn_layers=2,type_rnn='GRU',use_bidirection=True,use_past_out=False)
-    out_y = mdl.build_cnn_model(x,out_dim=2)
-    print out_y.name, x.name
-    # out_y_softmax = tf.nn.softmax(out_y)
-    # loss = mdl.compute_loss(out_y,out_y)
-    # sess = tf.Session()
+    mdl.set_regularization_parmeters(use_bn=False,use_dr=True)
+    # mdl.set_multiconv_parameters(fft_size=512,sample_rate=16000,multi_kernel_row_size=64,multi_kernel_col_size=5,multi_kernel_n_filters=3,type_multiscale='mel')
+    mdl.set_rnn_parameters(rnn_layers=3,type_rnn='GRU',use_bidirection=True,use_past_out=False)
+    out_y = mdl.build_rnn_model(x,out_dim=2)
+    # print out_y.name, x.name
+    out_y_softmax = tf.nn.softmax(out_y)
+    loss = mdl.compute_loss(out_y,out_y)
+    sess = tf.Session()
+    print sess.run(mdl.count_trainable_parameters())
     #
     # print sess.run([mdl.training], feed_dict={mdl.training:True})
 
