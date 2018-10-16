@@ -219,8 +219,10 @@ class Model:
 
         if self.use_multiconv:
             with tf.name_scope("Pre_layer_Convolutional_layer_with_multiscale_kernel") as scope:
-                self.multi_kernel_n_filters = 1
+                # self.multi_kernel_n_filters = 1
                 x_img = self.make_multiscale_convolutional_layer(x_img)
+                x_img = tf.concat(tf.unstack(x_img, axis=3),axis=1)
+
 
         with tf.name_scope("Recurrent_layer") as scope:
             x_ref = tf.reshape(x_img,[-1,x_img.get_shape()[1].value,x_img.get_shape()[2].value])
@@ -259,15 +261,91 @@ class Model:
         return out_y
 
 
+    def build_rnn_attention_model(self, x, out_dim):
+        (_, FFT_SIZE, TIME_SPLICE) = x.get_shape()
+
+        with tf.name_scope("Reshaping_data") as scope:
+            x_img = tf.reshape(x, [-1, FFT_SIZE.value, TIME_SPLICE.value, 1])
+            self.img_size = np.array([FFT_SIZE.value, TIME_SPLICE.value], dtype=np.int)
+
+        if self.use_multiconv:
+            with tf.name_scope("Pre_layer_Convolutional_layer_with_multiscale_kernel") as scope:
+                # self.multi_kernel_n_filters = 1
+                x_img = self.make_multiscale_convolutional_layer(x_img)
+                x_img = tf.concat(tf.unstack(x_img, axis=3), axis=1)
+
+        with tf.name_scope("Recurrent_layer") as scope:
+            x_ref = tf.reshape(x_img, [-1, x_img.get_shape()[1].value, x_img.get_shape()[2].value])
+            x_unstack = tf.unstack(x_ref, self.img_size[1], axis=2)
+
+            def _single_cell():
+                n_node = 1024
+                if self.type_rnn == 'GRU':
+                    _cell = rnn.GRUCell(n_node)
+                elif self.type_rnn == 'LSTM':
+                    _cell = rnn.BasicLSTMCell(n_node, forget_bias=1.0)
+                else:
+                    assert ('ERROR(RNNModel) : not exist type of RNN')
+
+                if self.use_dr:
+                    _cell = tf.nn.rnn_cell.DropoutWrapper(_cell, output_keep_prob=self.keep_prob)
+
+                return _cell
+
+            fw_cell = tf.contrib.rnn.MultiRNNCell([_single_cell() for _ in range(self.rnn_layers)],
+                                                  state_is_tuple=True)
+
+            if self.use_bidirection:
+                bw_cell = tf.contrib.rnn.MultiRNNCell([_single_cell() for _ in range(self.rnn_layers)],
+                                                      state_is_tuple=True)
+                rnn_outputs, fw_states, bw_states = rnn.static_bidirectional_rnn(fw_cell, bw_cell, x_unstack,
+                                                                                 dtype=tf.float32)
+            else:
+                rnn_outputs, current_state = tf.nn.static_rnn(fw_cell, x_unstack, dtype=tf.float32)
+
+        with tf.name_scope("Attention_layer"):
+            # attention part
+            # reference by https://github.com/ilivans/tf-rnn-attention/attention.py
+            attention_size = 1024
+            attention_inputs = tf.transpose(rnn_outputs, [1, 0, 2]) # transpose to [batch_size, time_length, rnn_hidden_node]
+
+            hidden_size = attention_inputs.shape[2].value
+
+            W_ = tf.Variable(tf.random_normal([hidden_size, attention_size],stddev=0.1))
+            b_ = tf.Variable(tf.random_normal([attention_size],stddev=0.1))
+            u_ = tf.Variable(tf.random_normal([attention_size],stddev=0.1))
+
+            with tf.name_scope('v'):
+                # v : [batch_size, time_length, attention_size] = [batch_size, time_length, hidden_node] * [hidden_node, attention_size]
+                v = tf.tanh(tf.tensordot(attention_inputs, W_, axes=1) + b_)
+
+            vu = tf.tensordot(v, u_, axes=1, name='vu') # [batch_size, time_length]
+            alphas = tf.nn.softmax(vu, name='alphas') # [batch_size, time_length]
+
+            # tf.expand_dims(alphas, -1) = [batch_size, time_length, 1]
+            # attention_outputs = [batch_size, hidden_node]
+            attention_outputs = tf.reduce_sum(attention_inputs * tf.expand_dims(alphas, -1),1) # sum of time range
+
+            if self.use_dr:
+                rnn_out = tf.layers.dropout(inputs=attention_outputs, rate=(1-self.keep_prob), training=self.training)
+            else:
+                rnn_out = attention_outputs
+
+        with tf.name_scope("Output_layer") as scope:
+            out_y = tf.layers.dense(inputs=rnn_out, units=out_dim, name="out_y")
+
+        return out_y
+
+
 if __name__ == '__main__':
 
     ''' Example of build model'''
-    x = tf.placeholder(tf.float32,shape=[None,64,101])
+    x = tf.placeholder(tf.float32,shape=[None,257,101])
     mdl = Model()
     mdl.set_regularization_parmeters(use_bn=False,use_dr=True)
-    # mdl.set_multiconv_parameters(fft_size=512,sample_rate=16000,multi_kernel_row_size=64,multi_kernel_col_size=5,multi_kernel_n_filters=3,type_multiscale='mel')
-    mdl.set_rnn_parameters(rnn_layers=3,type_rnn='GRU',use_bidirection=True,use_past_out=False)
-    out_y = mdl.build_rnn_model(x,out_dim=2)
+    mdl.set_multiconv_parameters(fft_size=512,sample_rate=16000,multi_kernel_row_size=64,multi_kernel_col_size=5,multi_kernel_n_filters=3,type_multiscale='mel')
+    mdl.set_rnn_parameters(rnn_layers=2,type_rnn='GRU',use_bidirection=True,use_past_out=False)
+    out_y = mdl.build_rnn_attention_model(x,out_dim=2)
     # print out_y.name, x.name
     out_y_softmax = tf.nn.softmax(out_y)
     loss = mdl.compute_loss(out_y,out_y)
