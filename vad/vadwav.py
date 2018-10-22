@@ -77,6 +77,10 @@ def reverse_min_sil_index(vad_frame_index_, min_sil_frames):
                 _vad_frame_index[bufinx] = 0
             bufinx = []
 
+        if i == len(vadinx)-1 and len(bufinx) != 0:
+            _vad_frame_index[bufinx] = 0
+            bufinx = []
+
     return _vad_frame_index
 
 def decision_vad_index_with_statis_model(wav_path,vad_frame_size_,vad_fft_size, vad_shift_size_,min_sil_frames,log_level=0,fignum=1):
