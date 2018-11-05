@@ -132,6 +132,59 @@ def fast_load_array_from_pos_lab_list(filename, pos_lab_list_, array_shape_=0):
 
     return _data_ary, _lab_list
 
+def fast_load_array_from_object_with_auto_slice(filename, pos_lab_list_, splice_size_=50, stride_size_=50):
+    with open(filename,'rb') as f:
+        datalen = np.array(len(pos_lab_list_))
+
+        # shape_ = np.array([])
+        # if array_shape_ == 0:
+        #     tmp_ary = np.load(f)
+        #     shape_ = np.append(datalen, tmp_ary.shape[:])
+        # else:
+        #     shape_ = np.append(datalen, array_shape_[:])
+        #
+        # _data_ary = np.zeros(shape_,dtype=np.float32)
+        _lab_list = ['None' for i in xrange(int(datalen))]
+        pos_lab_list = pos_lab_list_[:]
+        pos_lab_list.sort()
+
+        _data_list = []
+        _splice_index = []
+        _lab_list = []
+
+        i = 0
+        pre_pos = f.tell()
+        for pos_, lab_ in pos_lab_list:
+            mv_pos = pos_ - pre_pos
+            f.seek(mv_pos,1)
+
+            _data = np.load(f)
+            _spec = _data.item().get('spec')
+            _label = _data.item().get('label')
+            spec_data_pad = np.pad(_spec, ((0, 0), (splice_size_, splice_size_)), 'edge')
+            _data_list.append(spec_data_pad)
+
+            begi = 0
+            endi = begi + splice_size_ * 2 + 1
+            while endi < spec_data_pad.shape[1]:
+                # centeri = begi + splice_size_
+
+                _splice_index.append([i, begi, endi])
+                _lab_list.append(_label[begi])
+
+                begi += stride_size_
+                endi = begi + splice_size_ * 2 + 1
+
+
+            pre_pos = f.tell()
+            i += 1
+            del _data, _spec, _label, spec_data_pad
+
+        _splice_index_ary = np.array(_splice_index, dtype=int)
+
+    return _data_list, _lab_list, _splice_index_ary
+
+
 def fast_load_array_from_pos_lab_list_with_filter(filename, pos_lab_list_,filter,):
     # pos_lab_list : [ number_of_pos(string) label(string), ... ]
     with open(filename,'rb') as f:
@@ -256,6 +309,20 @@ def fast_load_array_from_pos_lab_vad_list(filename, pos_lab_list_, array_shape_=
 
     return _data_ary, _lab_list, _vad_list
 
+def data_splice_with_index(data_,inx_):
+
+    ilist_inx, ibeg, iend = inx_[0]
+    temp_data = data_[ilist_inx][:,ibeg:iend]
+    _shape = np.append(np.array(len(inx_)), temp_data.shape)
+
+    _data_ary = np.zeros(_shape,dtype=temp_data.dtype)
+
+    i = 0
+    for listinx, time_beg, time_end in inx_:
+        _data_ary[i] = data_[listinx][:,time_beg:time_end]
+        i += 1
+
+    return _data_ary
 
 def main():
     print 'Example code...'
