@@ -156,8 +156,8 @@ class Model:
             self.img_size = np.ceil(self.img_size / 2.0) # for pooling size [2, 2]
 
         with tf.name_scope("Layer_2_Covnolutional_layer_with_maxpooling") as scope:
-            # conv2 = self.make_convolutional_layer(cout1, 64, [3, 3], name_='conv2')
-            conv2 = self.make_convolutional_layer(cout1, 16, [3, 3], name_='conv2')
+            conv2 = self.make_convolutional_layer(cout1, 64, [3, 3], name_='conv2')
+            # conv2 = self.make_convolutional_layer(cout1, 16, [3, 3], name_='conv2')
             pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], padding='SAME', strides=2)
             if self.use_dr:
                 cout2 = tf.layers.dropout(inputs=pool2, rate=(1-self.keep_prob), training=self.training)
@@ -167,8 +167,8 @@ class Model:
             self.img_size = np.ceil(self.img_size / 2.0)  # for pooling size [2, 2]
             
         with tf.name_scope("Layer_3_Covnolutional_layer_with_maxpooling") as scope:
-            # conv3 = self.make_convolutional_layer(cout2, 128, [3, 3], name_='conv3')
-            conv3 = self.make_convolutional_layer(cout2, 8, [3, 3], name_='conv3')
+            conv3 = self.make_convolutional_layer(cout2, 128, [3, 3], name_='conv3')
+            # conv3 = self.make_convolutional_layer(cout2, 8, [3, 3], name_='conv3')
             pool3 = tf.layers.max_pooling2d(inputs=conv3, pool_size=[2, 2], padding='SAME', strides=2)
             if self.use_dr:
                 cout3 = tf.layers.dropout(inputs=pool3, rate=(1-self.keep_prob), training=self.training)
@@ -178,8 +178,8 @@ class Model:
             self.img_size = np.ceil(self.img_size / 2.0)  # for pooling size [2, 2]
 
         with tf.name_scope("Layer_4_Fully_connected_layer") as scope:
-            # flat_size = int(self.img_size[0]*self.img_size[1]*128)
-            flat_size = int(self.img_size[0] * self.img_size[1] * 8)
+            flat_size = int(self.img_size[0]*self.img_size[1]*128)
+            # flat_size = int(self.img_size[0] * self.img_size[1] * 8)
             flat4 = tf.reshape(cout3, [-1, flat_size],name='conv_flat')
 
             if self.use_bn:
@@ -194,7 +194,7 @@ class Model:
             else:
                 fout4 = fc4
 
-        with tf.name_scope("Layer_4_Fully_connected_layer") as scope:
+        with tf.name_scope("Layer_5_Fully_connected_layer") as scope:
 
             if self.use_bn:
                 fc5_1 = tf.layers.dense(inputs=fout4, units=1028, activation=None)
@@ -262,7 +262,6 @@ class Model:
             out_y = tf.layers.dense(inputs=rnn_out, units=out_dim, name="out_y")
 
         return out_y
-
 
     def build_rnn_attention_model(self, x, out_dim):
         (_, FFT_SIZE, TIME_SPLICE) = x.get_shape()
@@ -450,7 +449,7 @@ class Model:
 
 
         with tf.name_scope("Embedding_Covnolutional_layer_with_maxpooling2") as scope:
-            conv2 = self.make_convolutional_layer(cout1, 16, [3, 3], name_='conv2')
+            conv2 = self.make_convolutional_layer(cout1, 64, [3, 3], name_='conv2')
             pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], padding='SAME', strides=2)
             if self.use_dr:
                 cout2 = tf.layers.dropout(inputs=pool2, rate=(1 - self.keep_prob), training=self.training)
@@ -463,22 +462,55 @@ class Model:
 
 
         with tf.name_scope("Embedding_Covnolutional_layer_with_maxpooling3") as scope:
-            conv3 = self.make_convolutional_layer(cout2, 8, [3, 3], name_='conv3')
+            conv3 = self.make_convolutional_layer(cout2, 128, [3, 3], name_='conv3')
             pool3 = tf.layers.max_pooling2d(inputs=conv3, pool_size=[2, 2], padding='SAME', strides=2)
             if self.use_dr:
                 cout3 = tf.layers.dropout(inputs=pool3, rate=(1 - self.keep_prob), training=self.training)
             else:
                 cout3 = pool3
 
-            cout3_img = tf.concat(tf.unstack(cout2, axis=3), axis=1)
+            # cout3_img = tf.concat(tf.unstack(cout2, axis=3), axis=1)
 
-            self.img_size = np.array([cout3_img.get_shape()[1].value, cout3_img.get_shape()[2].value], dtype=np.int)
+            self.img_size = np.array([cout3.get_shape()[1].value, cout3.get_shape()[2].value], dtype=np.int)
+
+        with tf.name_scope("Layer_4_Fully_connected_layer") as scope:
+            flat_size = int(self.img_size[0]*self.img_size[1]*128)
+            # flat_size = int(self.img_size[0] * self.img_size[1] * 8)
+            flat4 = tf.reshape(cout3, [-1, flat_size],name='conv_flat')
+
+            if self.use_bn:
+                fc4_1 = tf.layers.dense(inputs=flat4, units=2048, activation=None)
+                fc4_2 = tf.layers.batch_normalization(fc4_1, training=self.training)
+                fc4 = tf.nn.relu(fc4_2)
+            else:
+                fc4 = tf.layers.dense(inputs=flat4, units=2048, activation=tf.nn.relu)
+
+            if self.use_dr:
+                fout4 = tf.layers.dropout(inputs=fc4, rate=(1-self.keep_prob), training=self.training)
+            else:
+                fout4 = fc4
+
+        with tf.name_scope("Layer_5_Fully_connected_layer") as scope:
+
+            if self.use_bn:
+                fc5_1 = tf.layers.dense(inputs=fout4, units=1024, activation=None)
+                fc5_2 = tf.layers.batch_normalization(fc5_1, training=self.training)
+                fc5 = tf.nn.relu(fc5_2)
+            else:
+                fc5 = tf.layers.dense(inputs=fout4, units=1024, activation=tf.nn.relu)
+
+            if self.use_dr:
+                fout5 = tf.layers.dropout(inputs=fc5, rate=(1-self.keep_prob), training=self.training)
+            else:
+                fout5 = fc5
 
 
         with tf.name_scope("Recurrent_layer") as scope:
-            x_ref = tf.reshape(cout3_img,[-1,rnn_seq_size,self.img_size[0],self.img_size[1]]) # [batch_size, rnn_seq_size, n_bin*n_filter, time_splice]
-            x_pack_time = tf.transpose(tf.reshape(x_ref, [-1,rnn_seq_size,self.img_size[0]*self.img_size[1]]),[0,2,1]) # [batch_size, embedding_melfeat, rnn_seq_size]
+            # x_ref = tf.reshape(cout3_img,[-1,rnn_seq_size,self.img_size[0],self.img_size[1]]) # [batch_size, rnn_seq_size, n_bin*n_filter, time_splice]
+            # x_pack_time = tf.transpose(tf.reshape(x_ref, [-1,rnn_seq_size,self.img_size[0]*self.img_size[1]]),[0,2,1]) # [batch_size, embedding_melfeat, rnn_seq_size]
+            x_pack_time = tf.transpose(tf.reshape(fout5, [-1, rnn_seq_size, 1024]),[0,2,1]) # [batch_size, embedding_size, rnn_seq_size]
             x_unstack = tf.unstack(x_pack_time, rnn_seq_size, axis=2)
+            rnn_direction_size = rnn_seq_size/2 + 1
 
             def _single_cell():
                 n_node = 1024
@@ -506,7 +538,164 @@ class Model:
                 rnn_out = tf.concat(rnn_outputs, 1)
             else:
                 rnn_out = rnn_outputs[-1]
+                # rnn_out = rnn_outputs[rnn_direction_size]
 
+        with tf.name_scope("Output_layer") as scope:
+            out_y = tf.layers.dense(inputs=rnn_out, units=out_dim, name="out_y")
+
+        return out_y
+
+    def build_longtime_melcnn_rnn_attention_model(self, x, out_dim, rnn_seq_size):
+        (_, FFT_SIZE, TOTAL_TIME_SPLICE) = x.get_shape()
+
+        TIME_SPLICE = TOTAL_TIME_SPLICE / rnn_seq_size
+
+        with tf.name_scope("Reshaping_data") as scope:
+            x_unpack_time = tf.reshape(tf.transpose(x, [0, 2, 1]), [-1, TIME_SPLICE,
+                                                                    FFT_SIZE])  # [batch_size*rnn_seq_size, time_splice, fft_size]
+            # x2 = tf.reshape(x_unpack_time,[-1,TOTAL_TIME_SPLICE,FFT_SIZE])
+            x_img = tf.reshape(tf.transpose(x_unpack_time, [0, 2, 1]), [-1, FFT_SIZE.value, TIME_SPLICE.value, 1])
+            self.img_size = np.array([FFT_SIZE.value, TIME_SPLICE.value], dtype=np.int)
+
+        with tf.name_scope("Pre_layer_Convolutional_layer_with_multiscale_kernel") as scope:
+            # self.multi_kernel_n_filters = 1
+            x_img = self.make_multiscale_convolutional_layer(x_img)
+            # x_img = tf.concat(tf.unstack(x_img, axis=3),axis=1)
+            self.img_size = np.array([x_img.get_shape()[1].value, x_img.get_shape()[2].value], dtype=np.int)
+            # x_img = tf.reshape(x_img,[-1, self.img_size[0], self.img_size[1], 1])
+
+        with tf.name_scope("Embedding_Covnolutional_layer_with_maxpooling1") as scope:
+            conv1 = self.make_convolutional_layer(x_img, 32, [3, 3], name_='conv1')
+            pool1 = tf.layers.max_pooling2d(inputs=conv1, pool_size=[2, 2], padding='SAME', strides=2)
+            if self.use_dr:
+                cout1 = tf.layers.dropout(inputs=pool1, rate=(1 - self.keep_prob), training=self.training)
+            else:
+                cout1 = pool1
+
+            # cout1_img = tf.concat(tf.unstack(cout1, axis=3), axis=1)
+
+            self.img_size = np.array([cout1.get_shape()[1].value, cout1.get_shape()[2].value], dtype=np.int)
+
+        with tf.name_scope("Embedding_Covnolutional_layer_with_maxpooling2") as scope:
+            conv2 = self.make_convolutional_layer(cout1, 64, [3, 3], name_='conv2')
+            pool2 = tf.layers.max_pooling2d(inputs=conv2, pool_size=[2, 2], padding='SAME', strides=2)
+            if self.use_dr:
+                cout2 = tf.layers.dropout(inputs=pool2, rate=(1 - self.keep_prob), training=self.training)
+            else:
+                cout2 = pool2
+
+            # cout2_img = tf.concat(tf.unstack(cout2, axis=3), axis=1)
+
+            self.img_size = np.array([cout2.get_shape()[1].value, cout2.get_shape()[2].value], dtype=np.int)
+
+        with tf.name_scope("Embedding_Covnolutional_layer_with_maxpooling3") as scope:
+            conv3 = self.make_convolutional_layer(cout2, 128, [3, 3], name_='conv3')
+            pool3 = tf.layers.max_pooling2d(inputs=conv3, pool_size=[2, 2], padding='SAME', strides=2)
+            if self.use_dr:
+                cout3 = tf.layers.dropout(inputs=pool3, rate=(1 - self.keep_prob), training=self.training)
+            else:
+                cout3 = pool3
+
+            # cout3_img = tf.concat(tf.unstack(cout2, axis=3), axis=1)
+
+            self.img_size = np.array([cout3.get_shape()[1].value, cout3.get_shape()[2].value], dtype=np.int)
+
+        with tf.name_scope("Layer_4_Fully_connected_layer") as scope:
+            flat_size = int(self.img_size[0] * self.img_size[1] * 128)
+            # flat_size = int(self.img_size[0] * self.img_size[1] * 8)
+            flat4 = tf.reshape(cout3, [-1, flat_size], name='conv_flat')
+
+            if self.use_bn:
+                fc4_1 = tf.layers.dense(inputs=flat4, units=2048, activation=None)
+                fc4_2 = tf.layers.batch_normalization(fc4_1, training=self.training)
+                fc4 = tf.nn.relu(fc4_2)
+            else:
+                fc4 = tf.layers.dense(inputs=flat4, units=2048, activation=tf.nn.relu)
+
+            if self.use_dr:
+                fout4 = tf.layers.dropout(inputs=fc4, rate=(1 - self.keep_prob), training=self.training)
+            else:
+                fout4 = fc4
+
+        with tf.name_scope("Layer_5_Fully_connected_layer") as scope:
+
+            if self.use_bn:
+                fc5_1 = tf.layers.dense(inputs=fout4, units=1024, activation=None)
+                fc5_2 = tf.layers.batch_normalization(fc5_1, training=self.training)
+                fc5 = tf.nn.relu(fc5_2)
+            else:
+                fc5 = tf.layers.dense(inputs=fout4, units=1024, activation=tf.nn.relu)
+
+            if self.use_dr:
+                fout5 = tf.layers.dropout(inputs=fc5, rate=(1 - self.keep_prob), training=self.training)
+            else:
+                fout5 = fc5
+
+        with tf.name_scope("Recurrent_layer") as scope:
+            # x_ref = tf.reshape(cout3_img,[-1,rnn_seq_size,self.img_size[0],self.img_size[1]]) # [batch_size, rnn_seq_size, n_bin*n_filter, time_splice]
+            # x_pack_time = tf.transpose(tf.reshape(x_ref, [-1,rnn_seq_size,self.img_size[0]*self.img_size[1]]),[0,2,1]) # [batch_size, embedding_melfeat, rnn_seq_size]
+            x_pack_time = tf.transpose(tf.reshape(fout5, [-1, rnn_seq_size, 1024]),
+                                       [0, 2, 1])  # [batch_size, embedding_size, rnn_seq_size]
+            x_unstack = tf.unstack(x_pack_time, rnn_seq_size, axis=2)
+            rnn_direction_size = rnn_seq_size / 2 + 1
+
+            def _single_cell():
+                n_node = 1024
+                if self.type_rnn == 'GRU':
+                    _cell = rnn.GRUCell(n_node)
+                elif self.type_rnn == 'LSTM':
+                    _cell = rnn.BasicLSTMCell(n_node, forget_bias=1.0)
+                else:
+                    assert ('ERROR(RNNModel) : not exist type of RNN')
+
+                if self.use_dr:
+                    _cell = tf.nn.rnn_cell.DropoutWrapper(_cell, output_keep_prob=self.keep_prob)
+
+                return _cell
+
+            fw_cell = tf.contrib.rnn.MultiRNNCell([_single_cell() for _ in range(self.rnn_layers)],
+                                                  state_is_tuple=True)
+
+            if self.use_bidirection:
+                bw_cell = tf.contrib.rnn.MultiRNNCell([_single_cell() for _ in range(self.rnn_layers)],
+                                                      state_is_tuple=True)
+                rnn_outputs, fw_states, bw_states = rnn.static_bidirectional_rnn(fw_cell, bw_cell, x_unstack,
+                                                                                 dtype=tf.float32)
+            else:
+                rnn_outputs, current_state = tf.nn.static_rnn(fw_cell, x_unstack, dtype=tf.float32)
+
+
+
+        with tf.name_scope("Attention_layer"):
+            # attention part
+            # reference by https://github.com/ilivans/tf-rnn-attention/attention.py
+            attention_size = 1024
+            attention_inputs = tf.transpose(rnn_outputs,
+                                            [1, 0, 2])  # transpose to [batch_size, time_length, rnn_hidden_node]
+
+            hidden_size = attention_inputs.shape[2].value
+
+            W_ = tf.Variable(tf.random_normal([hidden_size, attention_size], stddev=0.1))
+            b_ = tf.Variable(tf.random_normal([attention_size], stddev=0.1))
+            u_ = tf.Variable(tf.random_normal([attention_size], stddev=0.1))
+
+            with tf.name_scope('v'):
+                # v : [batch_size, time_length, attention_size] = [batch_size, time_length, hidden_node] * [hidden_node, attention_size]
+                v = tf.tanh(tf.tensordot(attention_inputs, W_, axes=1) + b_)
+
+            vu = tf.tensordot(v, u_, axes=1, name='vu')  # [batch_size, time_length]
+            alphas = tf.nn.softmax(vu, name='alphas')  # [batch_size, time_length]
+
+            # tf.expand_dims(alphas, -1) = [batch_size, time_length, 1]
+            # attention_outputs = [batch_size, hidden_node]
+            attention_outputs = tf.reduce_sum(attention_inputs * tf.expand_dims(alphas, -1), 1)  # sum of time range
+
+            if self.use_dr:
+                rnn_out = tf.layers.dropout(inputs=attention_outputs, rate=(1 - self.keep_prob), training=self.training)
+            else:
+                rnn_out = attention_outputs
+
+ 
         with tf.name_scope("Output_layer") as scope:
             out_y = tf.layers.dense(inputs=rnn_out, units=out_dim, name="out_y")
 
@@ -517,13 +706,13 @@ if __name__ == '__main__':
 
     ''' Example of build model'''
 
-    x = tf.placeholder(tf.float32,shape=[None,257,101])
+    x = tf.placeholder(tf.float32,shape=[None,257,525])
     mdl = Model()
     mdl.set_regularization_parmeters(use_bn=False,use_dr=True)
     mdl.set_multiconv_parameters(fft_size=512,sample_rate=16000,multi_kernel_row_size=64,multi_kernel_col_size=5,multi_kernel_n_filters=3,type_multiscale='mel')
-    # mdl.set_rnn_parameters(rnn_layers=2,type_rnn='GRU',use_bidirection=True,use_past_out=False)
-    # out_y = mdl.build_longtime_melcnn_rnn_model(x,out_dim=2,rnn_seq_size=25)
-    out_y = mdl.build_cnn_model(x,out_dim=2)
+    mdl.set_rnn_parameters(rnn_layers=1,type_rnn='GRU',use_bidirection=True,use_past_out=False)
+    out_y = mdl.build_longtime_melcnn_rnn_attention_model(x,out_dim=2,rnn_seq_size=25)
+    # out_y = mdl.build_cnn_model(x,out_dim=2)
 
 
     # data = np.append(np.ones([1,257,525]),np.ones([1,257,525])*2,axis=0)
